@@ -642,7 +642,7 @@ def determine_faculty_pubs_percents(pubs_per_faculty_in_range, selected_names):
 def determine_med_max_min(med_max_min):
     """Determine the median, maximum, or minimum of the publications of the selected publishers over the selected timespan"""
     all_names = get_selected_publishers(lname=True, allnames=True)
-    print(all_names)
+    # print(all_names)
     selected_names = get_selected_publishers(lname=True, allnames=False)
     date_year_ranges = get_selected_timespan_year_bins()
     pub_counts_per_publisher_over_time = determine_pubs_per_publisher_overtime(
@@ -1099,7 +1099,7 @@ with ui.navset_pill(id="tab"):
                             ax.legend(selected_names, loc="upper left")
                             return fig
 
-                    with ui.nav_panel("Potential Compare (Select up to 3)"):
+                    with ui.nav_panel("Potential Compare (Select up to 1)"):
                         ui.input_checkbox_group(
                             "min_max_med",
                             "Comparison Point Selection",
@@ -1115,8 +1115,8 @@ with ui.navset_pill(id="tab"):
                             req(input.file1())
                             fig, ax = plt.subplots()
                             selected_names = get_selected_publishers(True)
-                            if len(selected_names) > 3:
-                                selected_names = selected_names[0:3]
+                            if len(selected_names) > 1:
+                                selected_names = selected_names[0:1]
                             date_year_ranges = get_selected_timespan_year_bins()
                             pub_counts_per_publisher_over_time = (
                                 determine_pubs_per_publisher_overtime()
@@ -1135,12 +1135,12 @@ with ui.navset_pill(id="tab"):
                             )
 
                             if "Median" in input.min_max_med():
-                                print(determine_med_max_min("Median"))
+                                # print(determine_med_max_min("Median"))
                                 pubs_per_faculty_percent.update(
                                     determine_med_max_min("Median")
                                 )
                             if "Maximum" in input.min_max_med():
-                                print(determine_med_max_min("Maximum"))
+                                # print(determine_med_max_min("Maximum"))
                                 pubs_per_faculty_percent.update(
                                     determine_med_max_min("Maximum")
                                 )
