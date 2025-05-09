@@ -1,5 +1,7 @@
 ## Department Publication Dashboard
 
+# Run with 'shiny run --reload --launch-browser ./app.py' in Terminal when in the directory
+
 import re
 import datetime
 import calendar
@@ -131,8 +133,9 @@ def create_publisher_data():
             # If first name is the same, look for middle initial if it exists
             pass
         else:
+            regex_name_search = "(\W|\A)" + publish_data_dict[each_publisher]["Search_Name_Last"] + "(\W|\Z)" 
             name_match = re.compile(
-                publish_data_dict[each_publisher]["Search_Name_Last"], re.IGNORECASE
+                regex_name_search, re.IGNORECASE
             )
             # all_data = all_data.reset_index()
             all_attributed_publications = []
