@@ -24,6 +24,21 @@ year_designations = {
 
 publish_data_dict: dict = {}
 
+df_data_styles = [
+    {
+        "cols": [0, 1, 2],
+        "style": {"width": "150px"},
+    },
+    {
+        "cols": [3],
+        "style": {"width": "300px"},
+    },
+    {
+        "cols": [4],
+        "style": {"width": "450px"},
+    },
+]
+
 ui.page_opts(title="Anatomy Department Publication Dashboard", fillable=True)
 
 with ui.sidebar(open="desktop", width=300):
@@ -53,20 +68,22 @@ def read_in_file_all_data():
     """Read in the raw publication data that includes all the publications"""
     req(input.file1())
     file: list[FileInfo] | None = input.file1()
-    all_raw_data = pd.read_excel(
-        file[0]["datapath"], sheet_name="All Data", index_col=None
-    )
-    return all_raw_data
+    if file is not None:
+        all_raw_data = pd.read_excel(
+            file[0]["datapath"], sheet_name="All Data", index_col=None
+        )
+        return all_raw_data
 
 
 def read_in_file_publisher_data():
     """Read in the raw publisher data detailing names and research percentages"""
     req(input.file1())
     file: list[FileInfo] | None = input.file1()
-    publisher_raw_data = pd.read_excel(
-        file[0]["datapath"], sheet_name="Publishers", index_col=None, header=[0, 1]
-    )
-    return publisher_raw_data
+    if file is not None:
+        publisher_raw_data = pd.read_excel(
+            file[0]["datapath"], sheet_name="Publishers", index_col=None, header=[0, 1]
+        )
+        return publisher_raw_data
 
 
 def check_publisher_repeats(publisher_names_full):
@@ -97,107 +114,116 @@ def create_publisher_data():
     all_raw_data = read_in_file_all_data()
     publisher_raw_data = read_in_file_publisher_data()
     publisher_names_full = create_publisher_tuplelist(publisher_raw_data)
-    all_data = all_raw_data.drop(
-        ["Online published", "Number of NYIT \nStudent Authors"], axis=1
-    )
-    publisher_data = publisher_raw_data.sort_index(axis=1).drop(
-        [
-            "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
-            "Position",
-        ],
-        axis=1,
-    )
-    publisher_list, name_counts = check_publisher_repeats(publisher_names_full)
-
-    for index, each_publisher in enumerate(publisher_list):
-        # Use Default Dictionary Values to replace this
-        publish_data_dict[each_publisher] = {
-            "Search_Name_Last": publisher_names_full[index][
-                1
-            ],  # Publisher Last Name - String
-            "Search_Name_First": publisher_names_full[index][
-                0
-            ],  # Publisher First Name - String
-            "Search_Name_Middle_I": None,  # Publisher Middle Initial - String
-            "Display_Name": publisher_names_full[index][1]
-            + ", "
-            + publisher_names_full[index][0],  # Whole Display Name - String
-            "Author_Publications": (),  # All Publications attributed to Publisher - Tuple of Tuples that include Date,DOI, & Citation((date,doi,citation),())
-            "Publication_Amount": 0,  # Amount of Publications attributed to Publisher - Integer
-            "Currently_at_NYIT": False,  # Still at NYIT or Not - Boolean
-            "Research_Percents": {},  # Percentage of Work as Research - Dictionary {Fall Semester Year:Percent - Float,}
-        }
-        if publish_data_dict[each_publisher]["Search_Name_Last"] in name_counts:
-            # Look for last name & First Initial
-            # If First Initial is the same, look for first name
-            # If first name is the same, look for middle initial if it exists
-            pass
-        else:
-            regex_name_search = "(\W|\A)" + publish_data_dict[each_publisher]["Search_Name_Last"] + "(\W|\Z)" 
-            name_match = re.compile(
-                regex_name_search, re.IGNORECASE
+    if all_raw_data is not None:
+        if publisher_raw_data is not None:
+            all_data = all_raw_data.drop(
+                ["Online published", "Number of NYIT \nStudent Authors"], axis=1
             )
-            # all_data = all_data.reset_index()
-            all_attributed_publications = []
-            for index, row in all_data.iterrows():
-                publication_placeholder = []
-                if re.search(name_match, row["Citation"]) is not None:
-                    # print(row['Citation'])
-                    publication_placeholder.append(row["Print Published"])
-                    publication_placeholder.append(row["DOI"])
-                    publication_placeholder.append(row["Citation"])
-                if publication_placeholder:
-                    all_attributed_publications.append(tuple(publication_placeholder))
-            all_attributed_publications = tuple(all_attributed_publications)
-            publish_data_dict[each_publisher][
-                "Author_Publications"
-            ] = all_attributed_publications
-            publish_data_dict[each_publisher]["Publication_Amount"] = len(
-                all_attributed_publications
+            publisher_data = publisher_raw_data.sort_index(axis=1).drop(
+                [
+                    "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
+                    "Position",
+                ],
+                axis=1,
             )
-            for index, row in publisher_data.iterrows():
-                if re.search(name_match, row["Last Name"].tolist()[0]) is not None:
-                    publish_data_dict[each_publisher]["Currently_at_NYIT"] = row[
-                        "Currently at NYIT"
-                    ].tolist()[0]
+            publisher_list, name_counts = check_publisher_repeats(publisher_names_full)
 
-    newest_publication_date = get_time_extremes("Newest")
+            for index, each_publisher in enumerate(publisher_list):
+                # Use Default Dictionary Values to replace this
+                publish_data_dict[each_publisher] = {
+                    "Search_Name_Last": publisher_names_full[index][
+                        1
+                    ],  # Publisher Last Name - String
+                    "Search_Name_First": publisher_names_full[index][
+                        0
+                    ],  # Publisher First Name - String
+                    "Search_Name_Middle_I": None,  # Publisher Middle Initial - String
+                    "Display_Name": publisher_names_full[index][1]
+                    + ", "
+                    + publisher_names_full[index][0],  # Whole Display Name - String
+                    "Author_Publications": (),  # All Publications attributed to Publisher - Tuple of Tuples that include Date,DOI, & Citation((date,doi,citation),())
+                    "Publication_Amount": 0,  # Amount of Publications attributed to Publisher - Integer
+                    "Currently_at_NYIT": False,  # Still at NYIT or Not - Boolean
+                    "Research_Percents": {},  # Percentage of Work as Research - Dictionary {Fall Semester Year:Percent - Float,}
+                }
+                if publish_data_dict[each_publisher]["Search_Name_Last"] in name_counts:
+                    # Look for last name & First Initial
+                    # If First Initial is the same, look for first name
+                    # If first name is the same, look for middle initial if it exists
+                    pass
+                else:
+                    regex_name_search = (
+                        r"(\W|\A)"
+                        + publish_data_dict[each_publisher]["Search_Name_Last"]
+                        + r"(\W|\Z)"
+                    )
+                    name_match = re.compile(regex_name_search, re.IGNORECASE)
+                    # all_data = all_data.reset_index()
+                    all_attributed_publications = []
+                    for index, row in all_data.iterrows():
+                        publication_placeholder = []
+                        if re.search(name_match, row["Citation"]) is not None:
+                            # print(row['Citation'])
+                            publication_placeholder.append(row["Print Published"])
+                            publication_placeholder.append(row["DOI"])
+                            publication_placeholder.append(row["Citation"])
+                        if publication_placeholder:
+                            all_attributed_publications.append(
+                                tuple(publication_placeholder)
+                            )
+                    all_attributed_publications = tuple(all_attributed_publications)
+                    publish_data_dict[each_publisher][
+                        "Author_Publications"
+                    ] = all_attributed_publications
+                    publish_data_dict[each_publisher]["Publication_Amount"] = len(
+                        all_attributed_publications
+                    )
+                    for index, row in publisher_data.iterrows():
+                        if (
+                            re.search(name_match, row["Last Name"].tolist()[0])
+                            is not None
+                        ):
+                            publish_data_dict[each_publisher]["Currently_at_NYIT"] = (
+                                row["Currently at NYIT"].tolist()[0]
+                            )
 
-    # year_range = range(oldest_publication_date.year, newest_publication_date.year + 1)
-    recorded_year_range = range(
-        min(
-            list(
-                publisher_raw_data[
-                    "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)"
-                ].columns
-            )
-        ),
-        newest_publication_date.year + 1,
-    )
+            newest_publication_date = get_time_extremes("Newest")
 
-    # print(publisher_list)
-    for index, each_publisher in enumerate(publisher_list):
-        year_dict = {}
-        name_match = re.compile(
-            publish_data_dict[each_publisher]["Search_Name_Last"], re.IGNORECASE
-        )
-        for index, row in publisher_raw_data.iterrows():
-            if re.search(name_match, row["Last Name"].tolist()[0]) is not None:
-                for each_year in recorded_year_range:
-                    if np.isnan(
+            # year_range = range(oldest_publication_date.year, newest_publication_date.year + 1)
+            recorded_year_range = range(
+                min(
+                    list(
                         publisher_raw_data[
-                            "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
-                            each_year,
-                        ][index].item()
-                    ):
-                        year_dict[each_year] = 0
-                    else:
-                        year_dict[each_year] = publisher_raw_data[
-                            "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
-                            each_year,
-                        ][index].item()
+                            "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)"
+                        ].columns
+                    )
+                ),
+                newest_publication_date.year + 1,
+            )
 
-        publish_data_dict[each_publisher]["Research_Percents"] = year_dict
+            # print(publisher_list)
+            for index, each_publisher in enumerate(publisher_list):
+                year_dict = {}
+                name_match = re.compile(
+                    publish_data_dict[each_publisher]["Search_Name_Last"], re.IGNORECASE
+                )
+                for index, row in publisher_raw_data.iterrows():
+                    if re.search(name_match, row["Last Name"].tolist()[0]) is not None:
+                        for each_year in recorded_year_range:
+                            if np.isnan(
+                                publisher_raw_data[
+                                    "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
+                                    each_year,
+                                ][index].item()
+                            ):
+                                year_dict[each_year] = 0
+                            else:
+                                year_dict[each_year] = publisher_raw_data[
+                                    "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
+                                    each_year,
+                                ][index].item()
+
+                publish_data_dict[each_publisher]["Research_Percents"] = year_dict
 
 
 def create_publisher_tuplelist(publisher_raw_data, first_last=True):
@@ -818,7 +844,7 @@ with ui.navset_pill(id="tab"):
 
                         @render.plot
                         @reactive.event(input.selectauthor, ignore_none=True)
-                        def total_over_timespan() -> plt.Figure:
+                        def total_over_timespan():
                             """Plot the total amount of publications published from the
                             selected publishers over the selected timespan"""
                             req(input.file1())
@@ -851,7 +877,7 @@ with ui.navset_pill(id="tab"):
 
                         @render.plot
                         @reactive.event(input.selectauthor, ignore_none=True)
-                        def total_over_timespan_perfaculty() -> plt.Figure:
+                        def total_over_timespan_perfaculty():
                             """Plot the total amount of publications published from the
                             selected publishers over the selected timespan, displaying the
                             individual contributions of each publisher stacked"""
@@ -873,8 +899,8 @@ with ui.navset_pill(id="tab"):
                             fig, ax = plt.subplots()
 
                             ax.stackplot(
-                                list(dt_months),
-                                pub_counts_sums.values(),
+                                np.array(dt_months),
+                                list(pub_counts_sums.values()),
                                 labels=pub_counts_sums.keys(),
                             )
                             ax.legend(loc="upper left")
@@ -886,7 +912,7 @@ with ui.navset_pill(id="tab"):
 
                     @render.plot
                     @reactive.event(input.selectauthor, ignore_none=True)
-                    def proportional_breakdown() -> plt.Figure:
+                    def proportional_breakdown():
                         """Plot the percentage proportional breakdown of the total amount of
                         publications published from the selected publishers over the selected timespan
                         """
@@ -912,7 +938,7 @@ with ui.navset_pill(id="tab"):
 
                     @render.plot
                     @reactive.event(input.selectauthor, ignore_none=True)
-                    def publication_frequency() -> plt.Figure:
+                    def publication_frequency():
                         """Plot the frequency of publications published from the
                         selected publishers over the selected timespan"""
                         req(input.file1())
@@ -953,7 +979,7 @@ with ui.navset_pill(id="tab"):
 
                         @render.plot
                         # @reactive.event(input.selectauthor, ignore_none=True)
-                        def plot_pub_per_year() -> plt.Figure:
+                        def plot_pub_per_year():
                             req(input.file1())
                             fig, ax = plt.subplots()
                             selected_names = get_selected_publishers(
@@ -971,10 +997,13 @@ with ui.navset_pill(id="tab"):
                                 pub_counts_per_publisher_over_time,
                             )
 
-                            plt.bar(range(len(pubs_per_range)), pubs_per_range.values())
+                            plt.bar(
+                                range(len(pubs_per_range)),
+                                list(pubs_per_range.values()),
+                            )
                             plt.xticks(
                                 range(len(pubs_per_range)),
-                                pubs_per_range.keys(),
+                                list(pubs_per_range.keys()),
                                 rotation="vertical",
                             )
                             return fig
@@ -983,7 +1012,7 @@ with ui.navset_pill(id="tab"):
 
                         @render.plot
                         # @reactive.event(input.selectauthor, ignore_none=True)
-                        def plot_pubs_per_faculty() -> plt.Figure:
+                        def plot_pubs_per_faculty():
                             fig, ax = plt.subplots()
                             last_bottom = None
                             req(input.file1())
@@ -1033,7 +1062,7 @@ with ui.navset_pill(id="tab"):
                                     ]
                             plt.xticks(
                                 range(len(pubs_per_faculty_in_range)),
-                                pubs_per_faculty_in_range.keys(),
+                                list(pubs_per_faculty_in_range.keys()),
                                 rotation="vertical",
                             )
                             ax.legend(
@@ -1045,7 +1074,7 @@ with ui.navset_pill(id="tab"):
 
                         @render.plot
                         # @reactive.event(input.selectauthor, ignore_none=True)
-                        def plot_faculty_productivity_stacked() -> plt.Figure:
+                        def plot_faculty_productivity_stacked():
                             """Plot the efficiency of selected publishers in combination to display entire department productivity"""
                             req(input.file1())
                             fig, ax = plt.subplots()
@@ -1096,7 +1125,7 @@ with ui.navset_pill(id="tab"):
                                     ]
                             plt.xticks(
                                 range(len(pubs_per_faculty_in_range)),
-                                pubs_per_faculty_in_range.keys(),
+                                list(pubs_per_faculty_in_range.keys()),
                                 rotation="vertical",
                             )
                             ax.legend(selected_names, loc="upper left")
@@ -1113,7 +1142,7 @@ with ui.navset_pill(id="tab"):
 
                         @render.plot
                         # @reactive.event(input.selectauthor, ignore_none=True)
-                        def plot_faculty_productivity_sidebyside() -> plt.Figure:
+                        def plot_faculty_productivity_sidebyside():
                             """Plot the efficiency of selected publishers side-by-side for comparison purposes"""
                             req(input.file1())
                             fig, ax = plt.subplots()
@@ -1183,7 +1212,7 @@ with ui.navset_pill(id="tab"):
                             # xtick_range = [x - 1 for x in xtick_range]
                             plt.xticks(
                                 xtick_range,
-                                pubs_per_faculty_in_range.keys(),
+                                list(pubs_per_faculty_in_range.keys()),
                                 rotation="vertical",
                             )
                             # ax.set_ylim(0, 120)
@@ -1195,47 +1224,33 @@ with ui.navset_pill(id="tab"):
     with ui.nav_panel("Raw Data"):
 
         @render.data_frame
-        def raw_publication_data_df() -> render.DataGrid:
+        def raw_publication_data_df():
             """Display raw data in a grid for observing and filtering"""
             req(input.file1())
             raw_data = read_in_file_all_data()
-            return render.DataGrid(
-                raw_data,
-                filters=True,
-                width="100%",
-                height="600px",
-                styles=df_data_styles,
-            )
+            if raw_data is not None:
+                return render.DataGrid(
+                    raw_data,
+                    filters=True,
+                    width="100%",
+                    height="600px",
+                    styles=df_data_styles,
+                )
 
     with ui.nav_panel("Publisher Data"):
 
         @render.data_frame
-        def raw_publisher_data_df() -> render.DataGrid:
+        def raw_publisher_data_df():
             """Display publisher data in a grid for observing and filtering"""
             req(input.file1())
             raw_publisher_data = read_in_file_publisher_data()
-            df = raw_publisher_data.copy()
-            temp_cols = []
-            top_headers = 5
-            for i in range(top_headers):
-                temp_cols.append(df.columns[i][0])
-            for j in range(top_headers, len(df.columns)):
-                temp_cols.append(str(df.columns[j][1]) + " Research %")
-            df.columns = temp_cols
-            return render.DataGrid(df, filters=True, width="100%", height="600px")
-
-
-df_data_styles = [
-    {
-        "cols": [0, 1, 2],
-        "style": {"width": "150px"},
-    },
-    {
-        "cols": [3],
-        "style": {"width": "300px"},
-    },
-    {
-        "cols": [4],
-        "style": {"width": "450px"},
-    },
-]
+            if raw_publisher_data is not None:
+                df = raw_publisher_data.copy()
+                temp_cols = []
+                top_headers = 5
+                for i in range(top_headers):
+                    temp_cols.append(df.columns[i][0])
+                for j in range(top_headers, len(df.columns)):
+                    temp_cols.append(str(df.columns[j][1]) + " Research %")
+                df.columns = temp_cols
+                return render.DataGrid(df, filters=True, width="100%", height="600px")
