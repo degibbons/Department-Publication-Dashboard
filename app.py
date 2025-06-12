@@ -12,6 +12,7 @@ from shiny import reactive, req
 from shiny.express import input, render, ui
 from shiny.types import FileInfo
 import pandas as pd
+from tkinter import filedialog
 
 # import pprint
 
@@ -23,6 +24,8 @@ year_designations = {
 }
 
 publish_data_dict: dict = {}
+
+PERCENT_SUPER_HEADER = "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)"
 
 df_data_styles = [
     {
@@ -39,29 +42,10 @@ df_data_styles = [
     },
 ]
 
-ui.page_opts(title="Anatomy Department Publication Dashboard", fillable=True)
 
-with ui.sidebar(open="desktop", width=300):
-    ui.input_checkbox("alltime", "All Recorded Time", False)
-    ui.input_date_range("daterange", "Date Range", start="2000-01-01")
-    ui.input_checkbox_group(
-        "groupselector",
-        "Group Selection",
-        ["All", "Still at NYIT"],
-        selected=[],
-        inline=True,
-    )
-    ui.input_checkbox_group(
-        "selectauthor",
-        "Author Selector",
-        [""],
-        selected=[],
-        inline=True,
-    )
-
-ui.input_file(
-    "file1", "Upload Master File", accept=[".xlsx"], multiple=False, width="100%"
-)
+@reactive.event(input.csv_export_button)
+def export_selected_author_csv():
+    filedialog.askdirectory()
 
 
 def read_in_file_all_data():
@@ -121,7 +105,7 @@ def create_publisher_data():
             )
             publisher_data = publisher_raw_data.sort_index(axis=1).drop(
                 [
-                    "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
+                    PERCENT_SUPER_HEADER,
                     "Position",
                 ],
                 axis=1,
@@ -191,13 +175,7 @@ def create_publisher_data():
 
             # year_range = range(oldest_publication_date.year, newest_publication_date.year + 1)
             recorded_year_range = range(
-                min(
-                    list(
-                        publisher_raw_data[
-                            "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)"
-                        ].columns
-                    )
-                ),
+                min(list(publisher_raw_data[PERCENT_SUPER_HEADER].columns)),
                 newest_publication_date.year + 1,
             )
 
@@ -210,18 +188,13 @@ def create_publisher_data():
                 for index, row in publisher_raw_data.iterrows():
                     if re.search(name_match, row["Last Name"].tolist()[0]) is not None:
                         for each_year in recorded_year_range:
-                            if np.isnan(
-                                publisher_raw_data[
-                                    "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
-                                    each_year,
-                                ][index].item()
-                            ):
+                            research_percent = publisher_raw_data[
+                                PERCENT_SUPER_HEADER, each_year
+                            ].iloc[index]
+                            if np.isnan(research_percent.item()):
                                 year_dict[each_year] = 0
                             else:
-                                year_dict[each_year] = publisher_raw_data[
-                                    "Research %, Based on fall semester (e.g. 2003/2004 academic year is considered 2003)",
-                                    each_year,
-                                ][index].item()
+                                year_dict[each_year] = research_percent.item()
 
                 publish_data_dict[each_publisher]["Research_Percents"] = year_dict
 
@@ -745,6 +718,36 @@ def determine_activity_stats(most_or_least, year_or_month):
 
 
 ######### GUI CODE #########
+ui.page_opts(title="Anatomy Department Publication Dashboard", fillable=True)
+
+with ui.sidebar(open="desktop", width=300):
+    ui.input_checkbox("alltime", "All Recorded Time", False)
+    ui.input_date_range("daterange", "Date Range", start="2000-01-01")
+    ui.input_checkbox_group(
+        "groupselector",
+        "Group Selection",
+        ["All", "Still at NYIT"],
+        selected=[],
+        inline=True,
+    )
+    ui.input_checkbox_group(
+        "selectauthor",
+        "Author Selector",
+        [""],
+        selected=[],
+        inline=True,
+    )
+
+ui.input_file(
+    "file1", "Upload Master File", accept=[".xlsx"], multiple=False, width="100%"
+)
+
+ui.input_text(id="csv_export_name", label="Enter .csv export file name here", value="")
+
+ui.input_action_button(
+    "csv_export_button", "Export .csv of selected authors", width="25%"
+)
+
 with ui.navset_pill(id="tab"):
     with ui.nav_panel("Dashboard"):
         with ui.layout_columns(fill=False):
