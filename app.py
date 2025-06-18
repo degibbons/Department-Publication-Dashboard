@@ -3,6 +3,7 @@
 # Run with 'shiny run --reload --launch-browser ./app.py' in Terminal when in the directory
 
 import re
+import os
 import datetime
 import calendar
 import statistics
@@ -45,7 +46,8 @@ df_data_styles = [
 
 @reactive.event(input.csv_export_button)
 def export_selected_author_csv():
-    filedialog.askdirectory()
+    # filedialog.askdirectory()
+    pass
 
 
 def read_in_file_all_data():
@@ -742,11 +744,24 @@ ui.input_file(
     "file1", "Upload Master File", accept=[".xlsx"], multiple=False, width="100%"
 )
 
-ui.input_text(id="csv_export_name", label="Enter .csv export file name here", value="")
+with ui.accordion(open=False):
+    with ui.accordion_panel("Download Selected Data"):
+        ui.markdown(
+            "Download a .csv file including only the selected Authors in the selected Date Range."
+        )
+        ui.input_text(
+            id="csv_export_name", label="Enter .csv export file name here", value=""
+        )
 
-ui.input_action_button(
-    "csv_export_button", "Export .csv of selected authors", width="25%"
-)
+        @render.download(label="Download CSV", filename="image.png")
+        def download1():
+            """
+            Download export file using this function
+            """
+
+            path = os.path.join(os.path.dirname(__file__), "mtcars.csv")
+            return path
+
 
 with ui.navset_pill(id="tab"):
     with ui.nav_panel("Dashboard"):
