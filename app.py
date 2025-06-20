@@ -3,6 +3,7 @@
 # Run with 'shiny run --reload --launch-browser ./app.py' in Terminal when in the directory
 
 import re
+import io
 import os
 import datetime
 import calendar
@@ -14,6 +15,7 @@ from shiny.express import input, render, ui
 from shiny.types import FileInfo
 import pandas as pd
 from tkinter import filedialog
+import asyncio
 import csv
 import plotly.express as px
 
@@ -721,6 +723,40 @@ def determine_activity_stats(most_or_least, year_or_month):
             return
 
 
+def write_csv_export():
+    export_data = []
+    dt_start = get_selecteddate_timeextremes("Oldest")
+    dt_end = get_selecteddate_timeextremes("Newest")
+    selected_names = get_selected_publishers(lname=True, allnames=False)
+    for each_selected_author in selected_names:
+        for each_publication in publish_data_dict[each_selected_author][
+            "Author_Publications"
+        ]:
+            if (each_publication[0] >= dt_start) or (each_publication[0] <= dt_end):
+                temp_dict = {
+                    "Author": publish_data_dict[each_selected_author]["Display_Name"],
+                    "Print Date Published": each_publication[0],
+                    "DOI": each_publication[1],
+                    "Citation": each_publication[2],
+                }
+                export_data.append(temp_dict)
+    with open(
+        str(input.csv_export_name()) + ".csv" if not None else "output.csv",
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as csvfile:
+        fieldnames = [
+            "Author",
+            "Print Date Published",
+            "DOI",
+            "Citation",
+        ]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(export_data)
+
+
 ################################## GUI CODE #################################
 ui.page_opts(title="Anatomy Department Publication Dashboard", fillable=True)
 
@@ -755,54 +791,32 @@ with ui.accordion(open=False):
             id="csv_export_name", label="Enter .csv export file name here", value=""
         )
 
-        @render.download(
-            label="Download .CSV",
-            filename=(
-                str(input.csv_export_name()) + ".csv" if not None else "output.csv"
-            ),
-        )
-        # @render.download(label="Download CSV")
+        # @render.download(
+        #     label="Download .CSV",
+        #     filename=(
+        #         str(input.csv_export_name()) + ".csv"
+        #         if input.csv_export_name() is not None
+        #         else "output.csv"
+        #     ),
+        # )
+        @render.download(label="Download .CSV")
         def download1():
             """
             Download export file using this function
             """
-            export_data = []
-            dt_start = get_selecteddate_timeextremes("Oldest")
-            dt_end = get_selecteddate_timeextremes("Newest")
-            selected_names = get_selected_publishers(lname=True, allnames=False)
-            for each_selected_author in selected_names:
-                for each_publication in publish_data_dict[each_selected_author][
-                    "Author_Publications"
-                ]:
-                    if (each_publication[0] >= dt_start) or (
-                        each_publication[0] <= dt_end
-                    ):
-                        temp_dict = {
-                            "Author": publish_data_dict[each_selected_author][
-                                "Display_Name"
-                            ],
-                            "Print Date Published": each_publication[0],
-                            "DOI": each_publication[1],
-                            "Citation": each_publication[2],
-                        }
-                        export_data.append(temp_dict)
-            with open(
-                str(input.csv_export_name()) + ".csv" if not None else "output.csv",
-                "w",
-                newline="",
-                encoding="UTF-8",
-            ) as csvfile:
-                fieldnames = [
-                    "Author",
-                    "Display_Name",
-                    "Print Date Published",
-                    "DOI",
-                    "Citation",
-                ]
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(export_data)
-            return
+            ### Makes two copies instead of one
+            #### one in designated location
+            #### other is home directory
+            path = os.path.join(
+                os.path.dirname(__file__),
+                (
+                    str(input.csv_export_name()) + ".csv"
+                    if input.csv_export_name() is not None
+                    else "output.csv"
+                ),
+            )
+            write_csv_export()
+            return path
 
 
 with ui.navset_pill(id="tab"):
