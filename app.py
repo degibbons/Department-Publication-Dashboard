@@ -3,8 +3,8 @@
 # Run with 'shiny run --reload --launch-browser ./app.py' in Terminal when in the directory
 
 import re
-import io
 import os
+import csv
 import datetime
 import calendar
 import statistics
@@ -14,10 +14,6 @@ from shiny import reactive, req
 from shiny.express import input, render, ui
 from shiny.types import FileInfo
 import pandas as pd
-from tkinter import filedialog
-import asyncio
-import csv
-import plotly.express as px
 
 # import pprint
 
