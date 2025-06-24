@@ -12,6 +12,7 @@ from shiny import reactive, req
 from shiny.express import input, render, ui
 from shiny.types import FileInfo
 import pandas as pd
+import plotly.express as px
 
 # import pprint
 
