@@ -11,6 +11,7 @@ import numpy as np
 from shiny import reactive, req
 from shiny.express import input, render, ui
 from shiny.types import FileInfo
+from shinywidgets import render_plotly
 import pandas as pd
 import plotly.express as px
 
@@ -405,7 +406,7 @@ def get_selected_publishers(lname=True, allnames=False):
 
 def calculate_time_relevant_data(dates_only=True):
     """Get relevant data list corresponding to the selected publishers in the selected timespan"""
-    selected_names = get_selected_publishers(True)
+    selected_names = get_selected_publishers(lname=True, allnames=False)
     dt_start = get_selecteddate_timeextremes("Oldest")
     dt_end = get_selecteddate_timeextremes("Newest")
     total_publication_list = []
@@ -433,7 +434,6 @@ def calculate_time_relevant_data(dates_only=True):
 
 def determine_pubcounts():
     """Generate publication lists corresponding to publishers, months, and the sums of each months"""
-    # dt_start = get_selecteddate_timeextremes("Oldest")
     dt_end = get_selecteddate_timeextremes("Newest")
     dt_month_end = datetime.datetime(
         dt_end.year, dt_end.month, calendar.monthrange(dt_end.year, dt_end.month)[1]
@@ -443,7 +443,7 @@ def determine_pubcounts():
     month_publication_counts = [0] * len(x_axis_dates)
     for month_index, _ in enumerate(x_axis_dates):
         for each_pub in total_publication_list:
-            if month_index == len(x_axis_dates):
+            if month_index == len(x_axis_dates) - 1:
                 if (
                     each_pub[0] >= x_axis_dates[month_index]
                     and each_pub[0] <= dt_month_end
@@ -498,7 +498,7 @@ def determine_pubs_per_publisher_overtime(all_or_not=False):
 
 def determine_count_sums():
     """Determine the amount of publications by publisher in the selected timespan, but broken down by month"""
-    selected_names = get_selected_publishers(True)
+    selected_names = get_selected_publishers(lname=True, allnames=False)
     x_axis_dates = get_selected_timespan_months_list()
     dt_end = get_selecteddate_timeextremes("Newest")
     dt_month_end = datetime.datetime(
@@ -511,7 +511,7 @@ def determine_count_sums():
         pub_counts_sums[each_name] = month_publication_counts.copy()
     for month_index, _ in enumerate(x_axis_dates):
         for each_pub in total_publication_list:
-            if month_index == len(x_axis_dates):
+            if month_index == len(x_axis_dates) - 1:
                 if (
                     each_pub[0] >= x_axis_dates[month_index]
                     and each_pub[0] <= dt_month_end
@@ -674,6 +674,8 @@ def determine_med_max_min(med_max_min):
     all_names = get_selected_publishers(lname=True, allnames=True)
     # print(all_names)
     selected_names = get_selected_publishers(lname=True, allnames=False)
+    if len(selected_names) <= 0:
+        return
     date_year_ranges = get_selected_timespan_year_bins()
     pub_counts_per_publisher_over_time = determine_pubs_per_publisher_overtime(
         all_or_not=True
@@ -745,7 +747,7 @@ def determine_activity_stats(most_or_least, year_or_month):
             return
 
 
-######### GUI CODE #########
+############################# GUI CODE ##########################
 with ui.navset_pill(id="tab"):
     with ui.nav_panel("Dashboard"):
         with ui.layout_columns(fill=False):
@@ -843,7 +845,7 @@ with ui.navset_pill(id="tab"):
                 with ui.navset_card_tab(id="tab3"):
                     with ui.nav_panel("Total Over Time"):
 
-                        @render.plot
+                        @render_plotly
                         @reactive.event(input.selectauthor, ignore_none=True)
                         def total_over_timespan():
                             """Plot the total amount of publications published from the
@@ -861,100 +863,126 @@ with ui.navset_pill(id="tab"):
                                 running_count = total_pubs_per_month["Pub_Counts"][
                                     time_index
                                 ]
-                            fig, ax = plt.subplots()
-                            ax.plot(
-                                total_pubs_per_month["Months"],
-                                total_pubs_per_month["Pub_Counts"],
-                            )
-                            plt.fill_between(
-                                total_pubs_per_month["Months"],
-                                total_pubs_per_month["Pub_Counts"],
-                                color="blue",
-                                alpha=0.3,
-                            )
+
+                            graph_data = {
+                                "Months": total_pubs_per_month["Months"],
+                                "Publication Counts": total_pubs_per_month[
+                                    "Pub_Counts"
+                                ],
+                            }
+                            graph_df = pd.DataFrame(graph_data)
+                            fig = px.area(graph_df, x="Months", y="Publication Counts")
                             return fig
 
                     with ui.nav_panel("Author Contribution Over Time"):
 
-                        @render.plot
+                        @render_plotly
                         @reactive.event(input.selectauthor, ignore_none=True)
                         def total_over_timespan_perfaculty():
                             """Plot the total amount of publications published from the
                             selected publishers over the selected timespan, displaying the
                             individual contributions of each publisher stacked"""
                             req(input.file1())
-                            # publish_data_dict = create_publisher_data()
                             pub_counts_sums = determine_count_sums()
                             dt_start = get_selecteddate_timeextremes("Oldest")
                             dt_end = get_selecteddate_timeextremes("Newest")
                             x_axis_dates = pd.date_range(
                                 dt_start, dt_end, freq="MS"
                             ).tolist()
-                            dt_months = map(pd.to_datetime, x_axis_dates)
+                            dt_months = x_axis_dates
                             for each_publisher_sums in pub_counts_sums.values():
                                 running_count = 0
                                 for time_index in enumerate(each_publisher_sums):
                                     each_publisher_sums[time_index[0]] += running_count
                                     running_count = each_publisher_sums[time_index[0]]
 
-                            fig, ax = plt.subplots()
+                            pub_month_list = []
+                            publisher_list = []
+                            pub_count_list = []
+                            for index, each_publisher in enumerate(
+                                list(pub_counts_sums.keys())
+                            ):
+                                temp_publisher_list = [each_publisher] * len(
+                                    list(pub_counts_sums.values())[0]
+                                )
+                                publisher_list = publisher_list + temp_publisher_list
+                                temp_pubcount_list = list(pub_counts_sums.values())[
+                                    index
+                                ]
+                                pub_count_list = pub_count_list + temp_pubcount_list
+                                temp_pubmonth_list = dt_months
+                                pub_month_list = pub_month_list + temp_pubmonth_list
 
-                            ax.stackplot(
-                                np.array(dt_months),
-                                list(pub_counts_sums.values()),
-                                labels=pub_counts_sums.keys(),
+                            graph_data = {
+                                "Months": pub_month_list,
+                                "Publication Counts": pub_count_list,
+                                "Publisher": publisher_list,
+                            }
+
+                            graph_df = pd.DataFrame(graph_data)
+                            fig = px.area(
+                                graph_df,
+                                x="Months",
+                                y="Publication Counts",
+                                color="Publisher",
                             )
-                            ax.legend(loc="upper left")
-                            # ax.set_title("Author Contribution Breakdown Over Time")
                             return fig
 
             with ui.card(full_screen=True):
                 with ui.card_header("Proportional Breakdown"):
 
-                    @render.plot
+                    @render_plotly
                     @reactive.event(input.selectauthor, ignore_none=True)
                     def proportional_breakdown():
                         """Plot the percentage proportional breakdown of the total amount of
                         publications published from the selected publishers over the selected timespan
                         """
                         req(input.file1())
-                        # publish_data_dict = create_publisher_data()
                         labels = []
                         sizes = []
                         pub_counts_per_publisher = determine_pubs_per_publisher()
                         for each_name, each_count in pub_counts_per_publisher.items():
                             labels.append(each_name)
                             sizes.append(each_count)
-                        fig, ax = plt.subplots()
-                        ax.pie(
-                            sizes,
-                            labels=labels,
-                            autopct="%1.1f%%",
-                            wedgeprops={"edgecolor": "k", "linewidth": 1},
+
+                        graph_data = {"Publisher": labels, "Publications": sizes}
+                        graph_df = pd.DataFrame(graph_data)
+                        fig = px.pie(
+                            graph_df,
+                            values="Publications",
+                            names="Publisher",
                         )
                         return fig
 
             with ui.card(full_screen=True):
                 with ui.card_header("Publication Frequency"):
 
-                    @render.plot
+                    @render_plotly
                     @reactive.event(input.selectauthor, ignore_none=True)
                     def publication_frequency():
                         """Plot the frequency of publications published from the
                         selected publishers over the selected timespan"""
                         req(input.file1())
-                        # publish_data_dict = create_publisher_data()
-                        fig, ax = plt.subplots()
-                        # _, _, total_publication_list_datesonly, _ = determine_pubcounts(
-                        #     publish_data_dict
-                        # )
                         total_publication_list_datesonly = calculate_time_relevant_data(
                             dates_only=True
                         )
                         x_axis_dates = get_selected_timespan_months_list()
 
-                        ax.hist(
-                            x=total_publication_list_datesonly, bins=len(x_axis_dates)
+                        for list_index, each_month in enumerate(
+                            total_publication_list_datesonly
+                        ):
+                            total_publication_list_datesonly[list_index] = (
+                                each_month.strftime("%Y-%m")
+                            )
+
+                        graph_df = pd.DataFrame(
+                            {"Months": total_publication_list_datesonly}
+                        )
+                        fig = px.histogram(
+                            graph_df,
+                            x="Months",
+                            nbins=len(x_axis_dates),
+                            labels={"Months": "Month"},
                         )
                         return fig
 
@@ -978,11 +1006,10 @@ with ui.navset_pill(id="tab"):
 
                     with ui.nav_panel("Publication/Year"):
 
-                        @render.plot
-                        # @reactive.event(input.selectauthor, ignore_none=True)
+                        @render_plotly
+                        @reactive.event(input.selectauthor, ignore_none=True)
                         def plot_pub_per_year():
                             req(input.file1())
-                            fig, ax = plt.subplots()
                             selected_names = get_selected_publishers(
                                 lname=True, allnames=False
                             )
@@ -998,24 +1025,21 @@ with ui.navset_pill(id="tab"):
                                 pub_counts_per_publisher_over_time,
                             )
 
-                            plt.bar(
-                                range(len(pubs_per_range)),
-                                list(pubs_per_range.values()),
+                            years_list = list(pubs_per_range.keys())
+                            counts_list = list(pubs_per_range.values())
+                            graph_df = pd.DataFrame(
+                                {"Year": years_list, "Count": counts_list}
                             )
-                            plt.xticks(
-                                range(len(pubs_per_range)),
-                                list(pubs_per_range.keys()),
-                                rotation="vertical",
-                            )
+
+                            fig = px.bar(graph_df, x="Year", y="Count")
+                            fig.update_xaxes(tickangle=90)
                             return fig
 
                     with ui.nav_panel("Publication/Faculty"):
 
-                        @render.plot
-                        # @reactive.event(input.selectauthor, ignore_none=True)
+                        @render_plotly
+                        @reactive.event(input.selectauthor, ignore_none=True)
                         def plot_pubs_per_faculty():
-                            fig, ax = plt.subplots()
-                            last_bottom = None
                             req(input.file1())
                             selected_names = get_selected_publishers(
                                 lname=True, allnames=False
@@ -1025,63 +1049,52 @@ with ui.navset_pill(id="tab"):
                             pubs_per_publisher_over_time = (
                                 determine_pubs_per_publisher_overtime()
                             )
-                            (pubs_per_faculty_in_range) = (
+                            pubs_per_faculty_in_range = (
                                 determine_pubs_per_faculty_range(
                                     date_year_ranges,
                                     selected_names,
                                     pubs_per_publisher_over_time,
                                 )
                             )
-                            faculty_pubs_by_faculty = determine_facultypubs_dicts(
-                                pubs_per_faculty_in_range,
-                                selected_names,
+
+                            publishers_list = []
+                            year_count_list = []
+                            year_span_list = []
+
+                            for (
+                                each_timespan,
+                                counts_broken_down,
+                            ) in pubs_per_faculty_in_range.items():
+                                for each_publisher in counts_broken_down.keys():
+                                    publishers_list.append(each_publisher)
+                                    year_count_list.append(
+                                        counts_broken_down[each_publisher]
+                                    )
+                                    year_span_list.append(each_timespan)
+
+                            graph_df = pd.DataFrame(
+                                {
+                                    "Year": year_span_list,
+                                    "Count": year_count_list,
+                                    "Publisher": publishers_list,
+                                }
                             )
 
-                            for count_index, each_selected_publisher in enumerate(
-                                faculty_pubs_by_faculty.keys()
-                            ):
-                                if count_index != 0:
-                                    ax.bar(
-                                        range(len(pubs_per_faculty_in_range)),
-                                        faculty_pubs_by_faculty[
-                                            each_selected_publisher
-                                        ],
-                                        bottom=last_bottom,
-                                    )
-                                    last_bottom = faculty_pubs_by_faculty[
-                                        each_selected_publisher
-                                    ]
-                                else:
-                                    ax.bar(
-                                        range(len(pubs_per_faculty_in_range)),
-                                        faculty_pubs_by_faculty[
-                                            each_selected_publisher
-                                        ],
-                                    )
-                                    last_bottom = faculty_pubs_by_faculty[
-                                        each_selected_publisher
-                                    ]
-                            plt.xticks(
-                                range(len(pubs_per_faculty_in_range)),
-                                list(pubs_per_faculty_in_range.keys()),
-                                rotation="vertical",
+                            fig = px.bar(
+                                graph_df, x="Year", y="Count", color="Publisher"
                             )
-                            ax.legend(
-                                list(faculty_pubs_by_faculty.keys()), loc="upper left"
-                            )
+                            fig.update_xaxes(tickangle=90)
                             return fig
 
                     with ui.nav_panel("Potential Productivity"):
 
-                        @render.plot
-                        # @reactive.event(input.selectauthor, ignore_none=True)
+                        @render_plotly
+                        @reactive.event(input.selectauthor, ignore_none=True)
                         def plot_faculty_productivity_stacked():
                             """Plot the efficiency of selected publishers in combination to display entire department productivity"""
                             req(input.file1())
-                            fig, ax = plt.subplots()
                             selected_names = get_selected_publishers(True)
                             date_year_ranges = get_selected_timespan_year_bins()
-                            last_bottom = None
                             pub_counts_per_publisher_over_time = (
                                 determine_pubs_per_publisher_overtime()
                             )
@@ -1097,56 +1110,44 @@ with ui.navset_pill(id="tab"):
                                 pubs_per_faculty_in_range, selected_names
                             )
 
-                            # pp = pprint.PrettyPrinter(indent=4)
-                            # pp.pprint(pubs_per_faculty_percent)
+                            publishers_list = []
+                            year_efficiency_list = []
+                            year_span_list = []
 
-                            for count_index, each_selected_publisher in enumerate(
-                                pubs_per_faculty_percent.keys()
-                            ):
-                                if count_index != 0:
-                                    ax.bar(
-                                        range(len(pubs_per_faculty_in_range)),
-                                        pubs_per_faculty_percent[
-                                            each_selected_publisher
-                                        ],
-                                        bottom=last_bottom,
+                            for (
+                                each_publisher,
+                                each_percent_list,
+                            ) in pubs_per_faculty_percent.items():
+                                for timespan_index, each_timespan in enumerate(
+                                    pubs_per_faculty_in_range.keys()
+                                ):
+                                    publishers_list.append(each_publisher)
+                                    year_efficiency_list.append(
+                                        each_percent_list[timespan_index]
                                     )
-                                    last_bottom = pubs_per_faculty_percent[
-                                        each_selected_publisher
-                                    ]
-                                else:
-                                    ax.bar(
-                                        range(len(pubs_per_faculty_in_range)),
-                                        pubs_per_faculty_percent[
-                                            each_selected_publisher
-                                        ],
-                                    )
-                                    last_bottom = pubs_per_faculty_percent[
-                                        each_selected_publisher
-                                    ]
-                            plt.xticks(
-                                range(len(pubs_per_faculty_in_range)),
-                                list(pubs_per_faculty_in_range.keys()),
-                                rotation="vertical",
+                                    year_span_list.append(each_timespan)
+
+                            graph_df = pd.DataFrame(
+                                {
+                                    "Year": year_span_list,
+                                    "Efficiency": year_efficiency_list,
+                                    "Publisher": publishers_list,
+                                }
                             )
-                            ax.legend(selected_names, loc="upper left")
+
+                            fig = px.bar(
+                                graph_df, x="Year", y="Efficiency", color="Publisher"
+                            )
+                            fig.update_xaxes(tickangle=90)
                             return fig
 
                     with ui.nav_panel("Potential Compare (Select up to 1)"):
-                        ui.input_checkbox_group(
-                            "min_max_med",
-                            "Comparison Point Selection",
-                            ["Median", "Maximum"],
-                            selected=[],
-                            inline=True,
-                        )
 
-                        @render.plot
-                        # @reactive.event(input.selectauthor, ignore_none=True)
+                        @render_plotly
+                        @reactive.event(input.selectauthor, ignore_none=True)
                         def plot_faculty_productivity_sidebyside():
                             """Plot the efficiency of selected publishers side-by-side for comparison purposes"""
                             req(input.file1())
-                            fig, ax = plt.subplots()
                             selected_names = get_selected_publishers(True)
                             if len(selected_names) > 1:
                                 selected_names = selected_names[0:1]
@@ -1162,64 +1163,51 @@ with ui.navset_pill(id="tab"):
                                     pub_counts_per_publisher_over_time,
                                 )
                             )
-
                             pubs_per_faculty_percent = determine_faculty_pubs_percents(
                                 pubs_per_faculty_in_range, selected_names
                             )
 
-                            if "Median" in input.min_max_med():
-                                # print(determine_med_max_min("Median"))
-                                pubs_per_faculty_percent.update(
-                                    determine_med_max_min("Median")
-                                )
-                            if "Maximum" in input.min_max_med():
-                                # print(determine_med_max_min("Maximum"))
-                                pubs_per_faculty_percent.update(
-                                    determine_med_max_min("Maximum")
-                                )
+                            pubs_per_faculty_percent.update(
+                                determine_med_max_min("Median")
+                            )
+
+                            pubs_per_faculty_percent.update(
+                                determine_med_max_min("Maximum")
+                            )
+
+                            publishers_list = []
+                            year_efficiency_list = []
+                            year_span_list = []
+
                             for (
                                 each_publisher,
-                                each_list,
+                                each_percent_list,
                             ) in pubs_per_faculty_percent.items():
-                                pubs_per_faculty_percent[each_publisher] = tuple(
-                                    each_list
-                                )
-                            width = 0.25  # the width of the bars
-                            multiplier = 0
-                            x = np.arange(
-                                0, len(date_year_ranges) - 1
-                            )  # the label locations
+                                for timespan_index, each_timespan in enumerate(
+                                    pubs_per_faculty_in_range.keys()
+                                ):
+                                    publishers_list.append(each_publisher)
+                                    year_efficiency_list.append(
+                                        each_percent_list[timespan_index]
+                                    )
+                                    year_span_list.append(each_timespan)
 
-                            # print(x)
-                            # print(pubs_per_faculty_percent)
-                            for (
-                                attribute,
-                                measurement,
-                            ) in pubs_per_faculty_percent.items():
-                                offset = width * multiplier
+                            graph_df = pd.DataFrame(
+                                {
+                                    "Year": year_span_list,
+                                    "Efficiency": year_efficiency_list,
+                                    "Publisher": publishers_list,
+                                }
+                            )
 
-                                rects = ax.bar(
-                                    x + offset,
-                                    measurement,
-                                    width,
-                                    label=attribute,
-                                    align="center",
-                                )
-                                multiplier += 1
-                            ax.set_ylabel("Potential Productivity")
-                            ax.set_title("Potential Productivity by Faculty")
-                            # ax.set_xticks(x + 2 * width, list(date_year_ranges)[:-1])
-                            xtick_range = range(len(pubs_per_faculty_in_range))
-                            # xtick_range = [x - 1 for x in xtick_range]
-                            plt.xticks(
-                                xtick_range,
-                                list(pubs_per_faculty_in_range.keys()),
-                                rotation="vertical",
+                            fig = px.bar(
+                                graph_df,
+                                x="Year",
+                                y="Efficiency",
+                                color="Publisher",
+                                barmode="group",
                             )
-                            # ax.set_ylim(0, 120)
-                            ax.legend(
-                                list(pubs_per_faculty_percent.keys()), loc="upper left"
-                            )
+                            fig.update_xaxes(tickangle=90)
                             return fig
 
     with ui.nav_panel("Raw Data"):
