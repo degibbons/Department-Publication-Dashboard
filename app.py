@@ -134,7 +134,8 @@ def create_publisher_data():
                     regex_name_search = (
                         r"(\W|\A)"
                         + publish_data_dict[each_publisher]["Search_Name_Last"]
-                        + r"(\W|\Z)"
+                        + r"(\W)+"
+                        + publish_data_dict[each_publisher]["Search_Name_First"][0]
                     )
                     name_match = re.compile(regex_name_search, re.IGNORECASE)
                     all_attributed_publications = []
@@ -706,6 +707,7 @@ def determine_activity_stats(most_or_least, year_or_month):
         elif most_or_least == "Least":
             # Determine the least active month
             return
+
 
 def write_csv_export():
     export_data = []
