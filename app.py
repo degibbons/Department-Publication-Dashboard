@@ -131,17 +131,23 @@ def create_publisher_data():
                     # If first name is the same, look for middle initial if it exists
                     pass
                 else:
-                    regex_name_search = (
+                    regex_name_search_cite = (
                         r"(\W|\A)"
                         + publish_data_dict[each_publisher]["Search_Name_Last"]
                         + r"(\W)+"
                         + publish_data_dict[each_publisher]["Search_Name_First"][0]
                     )
-                    name_match = re.compile(regex_name_search, re.IGNORECASE)
+                    regex_name_search_last = (
+                        r"(\W|\A)"
+                        + publish_data_dict[each_publisher]["Search_Name_Last"]
+                        + r"(\W|\Z)"
+                    )
+                    name_match_cite = re.compile(regex_name_search_cite, re.IGNORECASE)
+                    name_match_last = re.compile(regex_name_search_last, re.IGNORECASE)
                     all_attributed_publications = []
                     for index, row in all_data.iterrows():
                         publication_placeholder = []
-                        if re.search(name_match, row["Citation"]) is not None:
+                        if re.search(name_match_cite, row["Citation"]) is not None:
                             publication_placeholder.append(row["Print Published"])
                             publication_placeholder.append(row["DOI"])
                             publication_placeholder.append(row["Citation"])
@@ -158,7 +164,7 @@ def create_publisher_data():
                     )
                     for index, row in publisher_data.iterrows():
                         if (
-                            re.search(name_match, row["Last Name"].tolist()[0])
+                            re.search(name_match_last, row["Last Name"].tolist()[0])
                             is not None
                         ):
                             publish_data_dict[each_publisher]["Currently_at_NYIT"] = (
@@ -335,6 +341,7 @@ def change_timespan_all():
 
 
 @reactive.effect
+# @reactive.event(input.groupselector, ignore_none=True)
 def change_selected_authors():
     """Change selected publishers so the only selected ones are still employed at NYIT"""
     req(input.file1())
@@ -343,6 +350,7 @@ def change_selected_authors():
         for author_data in publish_data_dict.values():
             if author_data["Currently_at_NYIT"] is True:
                 author_list.append(author_data["Display_Name"])
+
     elif str(input.groupselector()) == "('All',)":
         for author_data in publish_data_dict.values():
             author_list.append(author_data["Display_Name"])
