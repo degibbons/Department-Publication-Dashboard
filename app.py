@@ -1062,8 +1062,8 @@ with ui.navset_pill(id="tab"):
                     with ui.nav_panel("Publication/Year"):
 
                         @render_plotly
-                        @reactive.event(input.selectauthor, ignore_none=True)
                         def plot_pub_per_year():
+                            """plot each timespan's amount of publications"""
                             req(input.file1())
                             selected_names = get_selected_publishers(
                                 lname=True, allnames=False
@@ -1093,8 +1093,8 @@ with ui.navset_pill(id="tab"):
                     with ui.nav_panel("Publication/Faculty"):
 
                         @render_plotly
-                        @reactive.event(input.selectauthor, ignore_none=True)
                         def plot_pubs_per_faculty():
+                            """plot each timespan's amount of publications broken up by selected faculty"""
                             req(input.file1())
                             selected_names = get_selected_publishers(
                                 lname=True, allnames=False
@@ -1144,7 +1144,6 @@ with ui.navset_pill(id="tab"):
                     with ui.nav_panel("Potential Productivity"):
 
                         @render_plotly
-                        @reactive.event(input.selectauthor, ignore_none=True)
                         def plot_faculty_productivity_stacked():
                             """Plot the efficiency of selected publishers in combination to display entire department productivity"""
                             req(input.file1())
@@ -1199,7 +1198,6 @@ with ui.navset_pill(id="tab"):
                     with ui.nav_panel("Potential Compare (Select up to 1)"):
 
                         @render_plotly
-                        @reactive.event(input.selectauthor, ignore_none=True)
                         def plot_faculty_productivity_sidebyside():
                             """Plot the efficiency of selected publishers side-by-side for comparison purposes"""
                             req(input.file1())
