@@ -4,6 +4,6 @@ A dashboard used to visually quantify the publication habits and trends of the N
 Raw data not included.
 
 Head to: 
-[connect.posit.cloud](https://connect.posit.cloud/degibbons/content/0196a63e-bf64-056c-8034-bba4bec31152 ) 
+[Department Publication Dashboard](https://degibbons-department-publication-dashboard.share.connect.posit.cloud/) 
 to see it in action
 
